@@ -31,8 +31,7 @@
 namespace elliptics {
 
 struct upload_simple_t
-	: public ioremap::thevoid::buffered_request_stream<proxy>
-	, public std::enable_shared_from_this<upload_simple_t>
+	: public handler_t<ioremap::thevoid::buffered_request_stream<proxy>>
 {
 	upload_simple_t(mastermind::namespace_state_t ns_state_
 			, couple_t couple_, std::string filename_);
@@ -41,10 +40,19 @@ struct upload_simple_t
 	on_request(const ioremap::thevoid::http_request &http_request);
 
 	void
+	on_request_impl(const ioremap::thevoid::http_request &http_request);
+
+	void
 	on_chunk(const boost::asio::const_buffer &buffer, unsigned int flags);
 
 	void
+	on_chunk_impl(const boost::asio::const_buffer &buffer, unsigned int flags);
+
+	void
 	on_error(const boost::system::error_code &error_code);
+
+	void
+	on_error_impl(const boost::system::error_code &error_code);
 
 	void
 	on_write_is_done(const std::error_code &error_code);

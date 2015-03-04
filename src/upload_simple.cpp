@@ -34,16 +34,20 @@ upload_simple_t::upload_simple_t(mastermind::namespace_state_t ns_state_, couple
 
 void
 upload_simple_t::on_request(const ioremap::thevoid::http_request &http_request) {
+	safe_call(std::bind(&upload_simple_t::on_request_impl, this, std::move(http_request)));
+}
+
+void
+upload_simple_t::on_request_impl(const ioremap::thevoid::http_request &http_request) {
 
 	set_chunk_size(server()->m_write_chunk_size);
 
 	auto query_list = http_request.url().query();
 	auto offset = get_arg<uint64_t>(query_list, "offset", 0);
 
-	auto self = shared_from_this();
-	auto on_complete = [this, self] (const std::error_code &error_code) {
+	auto on_complete = safe_wrapper([this] (const std::error_code &error_code) {
 		on_write_is_done(error_code);
-	};
+		});
 
 	// The method runs in thevoid's io-loop, therefore proxy's dtor cannot run in this moment
 	// Hence write_session can be safely used without any check
@@ -58,6 +62,11 @@ upload_simple_t::on_request(const ioremap::thevoid::http_request &http_request) 
 
 void
 upload_simple_t::on_chunk(const boost::asio::const_buffer &buffer, unsigned int flags) {
+	safe_call(std::bind(&upload_simple_t::on_chunk_impl, this, std::cref(buffer), flags));
+}
+
+void
+upload_simple_t::on_chunk_impl(const boost::asio::const_buffer &buffer, unsigned int flags) {
 	const char *buffer_data = boost::asio::buffer_cast<const char *>(buffer);
 	const size_t buffer_size = boost::asio::buffer_size(buffer);
 
@@ -99,6 +108,11 @@ upload_simple_t::on_chunk(const boost::asio::const_buffer &buffer, unsigned int 
 // Thus, only socket read error should be handled.
 void
 upload_simple_t::on_error(const boost::system::error_code &error_code) {
+	safe_call(std::bind(&upload_simple_t::on_error_impl, this, std::cref(error_code)));
+}
+
+void
+upload_simple_t::on_error_impl(const boost::system::error_code &error_code) {
 	MDS_LOG_ERROR("error during reading request: %s", error_code.message().c_str());
 	deferred_fallback();
 }
@@ -177,8 +191,8 @@ upload_simple_t::send_result() {
 	reply.set_headers(headers);
 
 	send_headers(std::move(reply)
-			, std::bind(&upload_simple_t::headers_are_sent, shared_from_this()
-				, res_str, std::placeholders::_1));
+			, safe_wrapper(std::bind(&upload_simple_t::headers_are_sent, this
+				, res_str, std::placeholders::_1)));
 }
 
 void
@@ -193,8 +207,8 @@ upload_simple_t::headers_are_sent(const std::string &res_str
 	MDS_LOG_INFO("headers are sent");
 
 	send_data(std::move(res_str)
-			, std::bind(&upload_simple_t::data_is_sent, shared_from_this()
-				, std::placeholders::_1));
+			, safe_wrapper(std::bind(&upload_simple_t::data_is_sent, this
+				, std::placeholders::_1)));
 }
 
 void
@@ -221,8 +235,8 @@ upload_simple_t::remove() {
 	MDS_LOG_INFO("removing key %s", key.c_str());
 	if (auto session = server()->remove_session(request(), couple)) {
 		auto future = session->remove(key);
-		future.connect(std::bind(&upload_simple_t::on_removed, shared_from_this()
-					, std::placeholders::_1, std::placeholders::_2));
+		future.connect(safe_wrapper(std::bind(&upload_simple_t::on_removed, this
+					, std::placeholders::_1, std::placeholders::_2)));
 	} else {
 		MDS_LOG_ERROR("cannot remove files of failed request: remove-session is uninitialized");
 	}
