@@ -23,6 +23,7 @@
 #include "utils.hpp"
 #include "proxy.hpp"
 #include "loggers.hpp"
+#include "handler.hpp"
 
 #include <thevoid/stream.hpp>
 
@@ -33,18 +34,26 @@
 namespace elliptics {
 
 class upload_t
-	: public ioremap::thevoid::request_stream<proxy>
-	, public std::enable_shared_from_this<upload_t>
+	: public handler_t<ioremap::thevoid::request_stream<proxy>>
 {
 public:
 	void
 	on_headers(ioremap::thevoid::http_request &&http_request);
 
+	void
+	on_headers_impl(ioremap::thevoid::http_request http_request);
+
 	size_t
 	on_data(const boost::asio::const_buffer &buffer);
 
+	size_t
+	on_data_impl(const boost::asio::const_buffer &buffer);
+
 	void
 	on_close(const boost::system::error_code &error);
+
+	void
+	on_close_impl(const boost::system::error_code &error);
 
 private:
 	std::shared_ptr<base_request_stream> request_stream;

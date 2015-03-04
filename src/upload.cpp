@@ -44,6 +44,11 @@ namespace elliptics {
 
 void
 upload_t::on_headers(ioremap::thevoid::http_request &&http_request) {
+	safe_call(std::bind(&upload_t::on_headers_impl, this, std::move(http_request)));
+}
+
+void
+upload_t::on_headers_impl(ioremap::thevoid::http_request http_request) {
 	size_t total_size = 0;
 
 	if (const auto &arg = http_request.headers().content_length()) {
@@ -198,11 +203,21 @@ upload_t::on_headers(ioremap::thevoid::http_request &&http_request) {
 
 size_t
 upload_t::on_data(const boost::asio::const_buffer &buffer) {
+	return safe_call(std::bind(&upload_t::on_data_impl, this, std::cref(buffer)), 0);
+}
+
+size_t
+upload_t::on_data_impl(const boost::asio::const_buffer &buffer) {
 	return request_stream->on_data(buffer);
 }
 
 void
 upload_t::on_close(const boost::system::error_code &error) {
+	safe_call(std::bind(&upload_t::on_close_impl, this, std::cref(error)));
+}
+
+void
+upload_t::on_close_impl(const boost::system::error_code &error) {
 	request_stream->on_close(error);
 }
 
