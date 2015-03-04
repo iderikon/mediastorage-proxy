@@ -71,7 +71,7 @@ public:
 
 			stream->send_reply(ex.http_status());
 		} catch (const std::exception &ex) {
-			MDS_LOG_ERROR("uncaughted exception: http_status = 500 ; description = %s"
+			MDS_LOG_ERROR("exception: http_status = 500 ; description = %s"
 					, ex.what());
 			stream->send_reply(500);
 		}
@@ -130,7 +130,7 @@ public:
 
 			send_reply(ex.http_status());
 		} catch (const std::exception &ex) {
-			MDS_LOG_ERROR("uncaughted exception: http_status = 500 ; description = %s"
+			MDS_LOG_ERROR("exception: http_status = 500 ; description = %s"
 					, ex.what());
 			send_reply(500);
 		}
@@ -158,7 +158,7 @@ public:
 
 			send_reply(ex.http_status());
 		} catch (const std::exception &ex) {
-			MDS_LOG_ERROR("uncaughted exception: http_status = 500 ; description = %s"
+			MDS_LOG_ERROR("exception: http_status = 500 ; description = %s"
 					, ex.what());
 			send_reply(500);
 		}
