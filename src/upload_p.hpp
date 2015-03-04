@@ -91,19 +91,27 @@ private:
 };
 
 struct upload_multipart_t
-	: public ioremap::thevoid::request_stream<proxy>
-	, public std::enable_shared_from_this<upload_multipart_t>
+	: public handler_t<ioremap::thevoid::request_stream<proxy>>
 {
 	upload_multipart_t(mastermind::namespace_state_t ns_state_, couple_t couple_);
 
 	void
 	on_headers(ioremap::thevoid::http_request &&http_request_);
 
+	void
+	on_headers_impl(ioremap::thevoid::http_request http_request_);
+
 	size_t
 	on_data(const boost::asio::const_buffer &buffer);
 
+	size_t
+	on_data_impl(const boost::asio::const_buffer &buffer);
+
 	void
 	on_close(const boost::system::error_code &error);
+
+	void
+	on_close_impl(const boost::system::error_code &error);
 
 private:
 

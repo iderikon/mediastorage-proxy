@@ -96,6 +96,12 @@ upload_multipart_t::upload_multipart_t(mastermind::namespace_state_t ns_state_, 
 
 void
 upload_multipart_t::on_headers(ioremap::thevoid::http_request &&http_request_) {
+	safe_call(std::bind(&upload_multipart_t::on_headers_impl, this
+				, std::move(http_request_)));
+}
+
+void
+upload_multipart_t::on_headers_impl(ioremap::thevoid::http_request http_request_) {
 	http_request = std::move(http_request_);
 
 	if (const auto &arg = http_request.headers().content_type()) {
@@ -118,6 +124,12 @@ upload_multipart_t::on_headers(ioremap::thevoid::http_request &&http_request_) {
 
 size_t
 upload_multipart_t::on_data(const boost::asio::const_buffer &buffer) {
+	return safe_call(std::bind(&upload_multipart_t::on_data_impl, this
+				, std::cref(buffer)), 0);
+}
+
+size_t
+upload_multipart_t::on_data_impl(const boost::asio::const_buffer &buffer) {
 	const char *buffer_data = boost::asio::buffer_cast<const char *>(buffer);
 	const size_t buffer_size = boost::asio::buffer_size(buffer);
 
@@ -163,6 +175,11 @@ upload_multipart_t::on_data(const boost::asio::const_buffer &buffer) {
 
 void
 upload_multipart_t::on_close(const boost::system::error_code &error) {
+	safe_call(std::bind(&upload_multipart_t::on_close_impl, this, std::cref(error)));
+}
+
+void
+upload_multipart_t::on_close_impl(const boost::system::error_code &error) {
 	if (error) {
 		interrupt_writers(error_type_tag::client);
 		// Multipart parser is not finished if reading request error is ocurred.
@@ -252,10 +269,10 @@ upload_multipart_t::sm_headers() {
 	}
 
 	current_filename = name;
-	auto self = shared_from_this();
-	auto callback = [this, self, current_filename] (const std::error_code &error_code) {
-		on_writer_is_finished(current_filename, error_code);
-	};
+	auto callback = safe_wrapper(
+			[this, current_filename] (const std::error_code &error_code) {
+				on_writer_is_finished(current_filename, error_code);
+			});
 
 	buffered_writer = std::make_shared<buffered_writer_t>(
 			ioremap::swarm::logger(logger(), blackhole::log::attributes_t())
@@ -529,8 +546,8 @@ upload_multipart_t::send_result() {
 	reply.set_headers(headers);
 
 	send_headers(std::move(reply)
-			, std::bind(&upload_multipart_t::headers_are_sent, shared_from_this()
-				, res_str, std::placeholders::_1));
+			, safe_wrapper(std::bind(&upload_multipart_t::headers_are_sent, this
+				, res_str, std::placeholders::_1)));
 }
 
 void
@@ -546,8 +563,8 @@ upload_multipart_t::headers_are_sent(const std::string &res_str
 	MDS_LOG_INFO("headers are sent");
 
 	send_data(std::move(res_str)
-			, std::bind(&upload_multipart_t::data_is_sent, shared_from_this()
-				, std::placeholders::_1));
+			, safe_wrapper(std::bind(&upload_multipart_t::data_is_sent, this
+				, std::placeholders::_1)));
 }
 
 void
@@ -575,8 +592,8 @@ upload_multipart_t::remove_files() {
 
 			MDS_LOG_INFO("remove %s", key.c_str());
 			auto future = session->clone().remove(key);
-			future.connect(std::bind(&upload_multipart_t::on_removed, shared_from_this()
-						, key, std::placeholders::_1, std::placeholders::_2));
+			future.connect(safe_wrapper(std::bind(&upload_multipart_t::on_removed, this
+						, key, std::placeholders::_1, std::placeholders::_2)));
 		}
 
 		join_remove_tasks();
