@@ -107,13 +107,12 @@ public:
 	typedef handler_t<stream_base_type> self_type;
 	typedef std::enable_shared_from_this<self_type> enable_shared_from_this_base_type;
 
-	typedef std::function<void (void)> unsafe_callback_t;
-
 	using stream_base_type::send_reply;
 	using stream_base_type::logger;
 
+	template <typename Callback>
 	void
-	safe_call(unsafe_callback_t unsafe_callback) {
+	safe_call(Callback unsafe_callback) {
 		try {
 			unsafe_callback();
 		} catch (const http_error &ex) {
@@ -137,6 +136,35 @@ public:
 		}
 	}
 
+	template <typename Callback>
+	auto
+	safe_call(Callback unsafe_callback
+			, decltype(unsafe_callback()) default_value)
+	-> decltype(unsafe_callback()) {
+		try {
+			return unsafe_callback();
+		} catch (const http_error &ex) {
+			std::ostringstream oss;
+			oss
+				<< "http_error: http_status = " << ex.http_status()
+				<< " ; description = " << ex.what();
+			auto msg = oss.str();
+
+			if (ex.is_server_error()) {
+				MDS_LOG_ERROR("%s", msg.c_str());
+			} else {
+				MDS_LOG_INFO("%s", msg.c_str());
+			}
+
+			send_reply(ex.http_status());
+		} catch (const std::exception &ex) {
+			MDS_LOG_ERROR("uncaughted exception: http_status = 500 ; description = %s"
+					, ex.what());
+			send_reply(500);
+		}
+
+		return default_value;
+	}
 
 	template <typename Callback>
 	ioremap::thevoid::detail::attributes_bind_handler<
