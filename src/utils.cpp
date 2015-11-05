@@ -19,6 +19,7 @@
 
 #include "utils.hpp"
 
+
 std::ostream &
 elliptics::operator << (std::ostream &stream, const ioremap::elliptics::error_info &error_info) {
 	stream << "status=\"" << (error_info ? "bad" : "ok") << "\"; description=\"";
